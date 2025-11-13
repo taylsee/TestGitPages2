@@ -3,7 +3,7 @@
 <head>
     <title>Connect TON Wallet - VINE Bot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/@tonconnect/sdk@latest/lib/tonconnect-sdk.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/sdk@latest/lib/umd/tonconnect-sdk.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -125,6 +125,11 @@
             border-radius: 10px;
             margin: 15px 0;
         }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -175,6 +180,11 @@
                     Try Again
                 </button>
             </div>
+
+            <!-- Loading Section -->
+            <div id="loading-section" class="hidden">
+                <div class="status info">🔄 Loading TON Connect...</div>
+            </div>
         </div>
         
         <div class="card">
@@ -192,25 +202,46 @@
         let walletAddress = null;
         let vineBalance = 0;
 
+        // Wait for TON Connect SDK to load
+        function waitForTONConnect() {
+            if (typeof window.TonConnectSDK !== 'undefined') {
+                initTONConnect();
+            } else {
+                setTimeout(waitForTONConnect, 100);
+            }
+        }
+
         // Initialize TON Connect
         function initTONConnect() {
             try {
-                connector = new TonConnectSDK.TonConnect({
+                showSection('loading-section');
+                
+                console.log('Initializing TON Connect...');
+                connector = new window.TonConnectSDK.TonConnect({
                     manifestUrl: 'https://taylsee.github.io/TestGitPages2/tonconnect-manifest.json'
                 });
+
+                console.log('TON Connect initialized');
 
                 // Render wallet buttons
                 renderWallets();
 
                 // Check if wallet was already connected
                 connector.restoreConnection().then(() => {
+                    console.log('Connection restored');
                     if (connector.connected) {
                         onWalletConnected(connector.wallet);
+                    } else {
+                        showSection('connect-section');
                     }
+                }).catch(error => {
+                    console.error('Restore connection error:', error);
+                    showSection('connect-section');
                 });
 
                 // Listen for wallet connection
                 connector.onStatusChange((wallet) => {
+                    console.log('Wallet status changed:', wallet);
                     if (wallet) {
                         onWalletConnected(wallet);
                     } else {
@@ -219,12 +250,14 @@
                 });
 
             } catch (error) {
+                console.error('TON Connect initialization failed:', error);
                 showError('TON Connect initialization failed: ' + error.message);
             }
         }
 
         function renderWallets() {
             const walletsList = document.getElementById('wallets-list');
+            walletsList.innerHTML = '';
             
             const wallets = [
                 {
@@ -256,20 +289,22 @@
                 
                 walletsList.appendChild(walletElement);
             });
+
+            console.log('Wallets rendered:', wallets.length);
         }
 
         async function connectToWallet(walletInfo) {
             try {
-                showSection('connect-section');
-                document.getElementById('connect-section').classList.add('loading');
-
+                console.log('Connecting to wallet:', walletInfo.name);
+                
                 const connectionSource = {
                     universalLink: walletInfo.universalLink,
                     bridgeUrl: 'https://bridge.tonapi.io/bridge'
                 };
 
                 // Generate connection link
-                const connectionLink = connector.connect(connectionSource);
+                const connectionLink = await connector.connect(connectionSource);
+                console.log('Connection link:', connectionLink);
 
                 // Open wallet app
                 if (window.Telegram && Telegram.WebApp) {
@@ -279,11 +314,14 @@
                 }
 
             } catch (error) {
+                console.error('Connection failed:', error);
                 showError('Connection failed: ' + error.message);
             }
         }
 
         async function onWalletConnected(wallet) {
+            console.log('Wallet connected details:', wallet);
+            
             if (wallet && wallet.account && wallet.account.address) {
                 walletAddress = wallet.account.address;
                 
@@ -291,10 +329,12 @@
                 document.getElementById('wallet-address').textContent = walletAddress;
                 showSection('connected-section');
                 
-                console.log('Wallet connected:', wallet);
+                console.log('Wallet connected successfully:', walletAddress);
                 
                 // Check VINE balance
                 await checkVineBalance(walletAddress);
+            } else {
+                showError('Invalid wallet connection data');
             }
         }
 
@@ -358,6 +398,8 @@
                 method: 'ton_connect'
             };
 
+            console.log('Sending data to bot:', data);
+
             // Send to Telegram bot
             if (window.Telegram && Telegram.WebApp) {
                 Telegram.WebApp.sendData(JSON.stringify(data));
@@ -373,10 +415,13 @@
         }
 
         function showSection(sectionId) {
+            console.log('Showing section:', sectionId);
+            
             // Hide all sections
             document.getElementById('connect-section').classList.add('hidden');
             document.getElementById('connected-section').classList.add('hidden');
             document.getElementById('error-section').classList.add('hidden');
+            document.getElementById('loading-section').classList.add('hidden');
             
             // Remove loading state
             document.getElementById('connect-section').classList.remove('loading');
@@ -386,26 +431,34 @@
         }
 
         function showError(message) {
+            console.error('Showing error:', message);
             document.getElementById('error-message').textContent = message;
             showSection('error-section');
         }
 
         function retryConnection() {
+            console.log('Retrying connection');
             showSection('connect-section');
             walletAddress = null;
             vineBalance = 0;
+            
+            // Re-initialize TON Connect
+            setTimeout(initTONConnect, 100);
         }
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+            
             // Initialize Telegram WebApp
             if (window.Telegram && Telegram.WebApp) {
                 Telegram.WebApp.ready();
                 Telegram.WebApp.expand();
+                console.log('Telegram WebApp initialized');
             }
             
-            // Initialize TON Connect
-            initTONConnect();
+            // Wait for TON Connect SDK to load
+            waitForTONConnect();
         });
     </script>
 </body>
