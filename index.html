@@ -53,11 +53,6 @@
             transform: translateY(-2px);
         }
         
-        .button:disabled {
-            background: #666;
-            cursor: not-allowed;
-        }
-        
         .wallet-button {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -125,11 +120,6 @@
             border-radius: 10px;
             margin: 15px 0;
         }
-        
-        .loading {
-            opacity: 0.7;
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
@@ -147,11 +137,6 @@
                 <div id="wallets-list">
                     <!-- Wallets will be loaded here -->
                 </div>
-                
-                <div class="status info">
-                    <strong>Supported Wallets:</strong><br>
-                    • Tonkeeper • TonWallet • MyTonWallet
-                </div>
             </div>
 
             <!-- Connected Section -->
@@ -163,12 +148,7 @@
                     <div class="status info">🔄 Checking VINE balance...</div>
                 </div>
                 
-                <div class="status success">
-                    <strong>TON Connect Successful!</strong><br>
-                    Your wallet is securely connected.
-                </div>
-                
-                <button class="button" onclick="sendToBot()" id="confirm-btn">
+                <button class="button" onclick="sendToBot()">
                     Confirm Connection
                 </button>
             </div>
@@ -179,11 +159,6 @@
                 <button class="button" onclick="retryConnection()">
                     Try Again
                 </button>
-            </div>
-
-            <!-- Loading Section -->
-            <div id="loading-section" class="hidden">
-                <div class="status info">🔄 Loading TON Connect...</div>
             </div>
         </div>
         
@@ -202,80 +177,47 @@
         let walletAddress = null;
         let vineBalance = 0;
 
-        // Wait for TON Connect SDK to load
-        function waitForTONConnect() {
-            if (typeof window.TonConnectSDK !== 'undefined') {
-                initTONConnect();
-            } else {
-                setTimeout(waitForTONConnect, 100);
+        // Wallets configuration
+        const wallets = [
+            {
+                name: "Tonkeeper",
+                universalLink: "https://app.tonkeeper.com/ton-connect",
+                description: "Most popular TON wallet"
+            },
+            {
+                name: "TonWallet", 
+                universalLink: "https://tonwallet.me/ton-connect",
+                description: "Browser extension wallet"
+            },
+            {
+                name: "MyTonWallet",
+                universalLink: "https://mytonwallet.app/ton-connect",
+                description: "Web-based wallet"
             }
-        }
+        ];
 
-        // Initialize TON Connect
-        function initTONConnect() {
-            try {
-                showSection('loading-section');
-                
-                console.log('Initializing TON Connect...');
-                connector = new window.TonConnectSDK.TonConnect({
-                    manifestUrl: 'https://taylsee.github.io/TestGitPages2/tonconnect-manifest.json'
-                });
-
-                console.log('TON Connect initialized');
-
-                // Render wallet buttons
-                renderWallets();
-
-                // Check if wallet was already connected
-                connector.restoreConnection().then(() => {
-                    console.log('Connection restored');
-                    if (connector.connected) {
-                        onWalletConnected(connector.wallet);
-                    } else {
-                        showSection('connect-section');
-                    }
-                }).catch(error => {
-                    console.error('Restore connection error:', error);
-                    showSection('connect-section');
-                });
-
-                // Listen for wallet connection
-                connector.onStatusChange((wallet) => {
-                    console.log('Wallet status changed:', wallet);
-                    if (wallet) {
-                        onWalletConnected(wallet);
-                    } else {
-                        console.log('Wallet disconnected');
-                    }
-                });
-
-            } catch (error) {
-                console.error('TON Connect initialization failed:', error);
-                showError('TON Connect initialization failed: ' + error.message);
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Starting VINE Bot TON Connect...');
+            
+            // Initialize Telegram WebApp
+            if (window.Telegram && Telegram.WebApp) {
+                Telegram.WebApp.ready();
+                Telegram.WebApp.expand();
+                console.log('✅ Telegram WebApp initialized');
             }
-        }
+            
+            // Render wallet buttons immediately
+            renderWallets();
+            
+            // Initialize TON Connect
+            initTONConnect();
+        });
 
+        // Render wallet buttons
         function renderWallets() {
             const walletsList = document.getElementById('wallets-list');
             walletsList.innerHTML = '';
-            
-            const wallets = [
-                {
-                    name: "Tonkeeper",
-                    universalLink: "https://app.tonkeeper.com/ton-connect",
-                    description: "Most popular TON wallet"
-                },
-                {
-                    name: "TonWallet", 
-                    universalLink: "https://tonwallet.me/ton-connect",
-                    description: "Browser extension wallet"
-                },
-                {
-                    name: "MyTonWallet",
-                    universalLink: "https://mytonwallet.app/ton-connect",
-                    description: "Web-based wallet"
-                }
-            ];
 
             wallets.forEach(wallet => {
                 const walletElement = document.createElement('div');
@@ -290,21 +232,62 @@
                 walletsList.appendChild(walletElement);
             });
 
-            console.log('Wallets rendered:', wallets.length);
+            console.log('✅ Wallets rendered:', wallets.length);
         }
 
+        // Initialize TON Connect
+        function initTONConnect() {
+            try {
+                console.log('🔄 Initializing TON Connect...');
+                
+                if (typeof window.TonConnectSDK === 'undefined') {
+                    throw new Error('TON Connect SDK not loaded');
+                }
+
+                connector = new window.TonConnectSDK.TonConnect({
+                    manifestUrl: 'https://taylsee.github.io/TestGitPages2/tonconnect-manifest.json'
+                });
+
+                console.log('✅ TON Connect initialized');
+
+                // Check for existing connection
+                connector.restoreConnection().then(() => {
+                    if (connector.connected) {
+                        console.log('🔗 Found existing connection');
+                        onWalletConnected(connector.wallet);
+                    }
+                });
+
+                // Listen for new connections
+                connector.onStatusChange((wallet) => {
+                    console.log('🔄 Wallet status changed');
+                    if (wallet) {
+                        onWalletConnected(wallet);
+                    }
+                });
+
+            } catch (error) {
+                console.error('❌ TON Connect init error:', error);
+                // Don't show error - let user try to connect anyway
+            }
+        }
+
+        // Connect to specific wallet
         async function connectToWallet(walletInfo) {
             try {
-                console.log('Connecting to wallet:', walletInfo.name);
+                console.log('🔗 Connecting to:', walletInfo.name);
                 
+                if (!connector) {
+                    throw new Error('TON Connect not initialized');
+                }
+
                 const connectionSource = {
                     universalLink: walletInfo.universalLink,
                     bridgeUrl: 'https://bridge.tonapi.io/bridge'
                 };
 
-                // Generate connection link
                 const connectionLink = await connector.connect(connectionSource);
-                console.log('Connection link:', connectionLink);
+                console.log('📱 Opening wallet app...');
 
                 // Open wallet app
                 if (window.Telegram && Telegram.WebApp) {
@@ -314,13 +297,14 @@
                 }
 
             } catch (error) {
-                console.error('Connection failed:', error);
-                showError('Connection failed: ' + error.message);
+                console.error('❌ Connection error:', error);
+                showError('Failed to connect: ' + error.message);
             }
         }
 
+        // Handle successful wallet connection
         async function onWalletConnected(wallet) {
-            console.log('Wallet connected details:', wallet);
+            console.log('✅ Wallet connected:', wallet);
             
             if (wallet && wallet.account && wallet.account.address) {
                 walletAddress = wallet.account.address;
@@ -329,23 +313,19 @@
                 document.getElementById('wallet-address').textContent = walletAddress;
                 showSection('connected-section');
                 
-                console.log('Wallet connected successfully:', walletAddress);
-                
                 // Check VINE balance
                 await checkVineBalance(walletAddress);
             } else {
-                showError('Invalid wallet connection data');
+                showError('Invalid wallet connection');
             }
         }
 
+        // Check VINE token balance
         async function checkVineBalance(address) {
             try {
-                // Здесь будет реальная проверка баланса через TON API
-                // Пока используем тестовые данные
-                
-                // Имитация запроса к TON API
+                // Simulate API call delay
                 setTimeout(() => {
-                    // Тестовый баланс (случайное число от 0 до 200)
+                    // Test balance (random 0-200)
                     vineBalance = Math.floor(Math.random() * 200);
                     
                     const balanceSection = document.getElementById('balance-section');
@@ -371,19 +351,20 @@
                         `;
                     }
                     
-                }, 2000);
+                }, 1500);
                 
             } catch (error) {
-                console.error('Balance check failed:', error);
+                console.error('Balance check error:', error);
                 document.getElementById('balance-section').innerHTML = `
                     <div class="status error">
-                        ❌ Failed to check balance<br>
+                        ❌ Balance check failed<br>
                         Connection will still be saved
                     </div>
                 `;
             }
         }
 
+        // Send data to Telegram bot
         function sendToBot() {
             if (!walletAddress) {
                 showError('No wallet address found');
@@ -398,68 +379,44 @@
                 method: 'ton_connect'
             };
 
-            console.log('Sending data to bot:', data);
+            console.log('📤 Sending to bot:', data);
 
             // Send to Telegram bot
             if (window.Telegram && Telegram.WebApp) {
                 Telegram.WebApp.sendData(JSON.stringify(data));
                 
-                // Close Web App after sending
+                // Close Web App
                 setTimeout(() => {
                     Telegram.WebApp.close();
                 }, 1000);
             } else {
-                // For testing outside Telegram
-                alert('Data to send to bot: ' + JSON.stringify(data, null, 2));
+                alert('Wallet connected: ' + walletAddress + '\nBalance: ' + vineBalance + ' VINE');
             }
         }
 
+        // Show specific section
         function showSection(sectionId) {
-            console.log('Showing section:', sectionId);
-            
             // Hide all sections
             document.getElementById('connect-section').classList.add('hidden');
             document.getElementById('connected-section').classList.add('hidden');
             document.getElementById('error-section').classList.add('hidden');
-            document.getElementById('loading-section').classList.add('hidden');
-            
-            // Remove loading state
-            document.getElementById('connect-section').classList.remove('loading');
             
             // Show target section
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
+        // Show error message
         function showError(message) {
-            console.error('Showing error:', message);
             document.getElementById('error-message').textContent = message;
             showSection('error-section');
         }
 
+        // Retry connection
         function retryConnection() {
-            console.log('Retrying connection');
             showSection('connect-section');
             walletAddress = null;
             vineBalance = 0;
-            
-            // Re-initialize TON Connect
-            setTimeout(initTONConnect, 100);
         }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing...');
-            
-            // Initialize Telegram WebApp
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.ready();
-                Telegram.WebApp.expand();
-                console.log('Telegram WebApp initialized');
-            }
-            
-            // Wait for TON Connect SDK to load
-            waitForTONConnect();
-        });
     </script>
 </body>
 </html>
