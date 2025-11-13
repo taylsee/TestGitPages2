@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Connect TON Wallet - VINE Bot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .button {
+            background: #0088cc;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            background: #0077bb;
+            transform: translateY(-2px);
+        }
+        
+        .button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .address {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            word-break: break-all;
+            font-family: monospace;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🍇</div>
+        <h1>VINE Bot</h1>
+        <p>Connect your TON wallet to track VINE tokens</p>
+        
+        <div class="card">
+            <div id="connect-section">
+                <h3>🔗 Connect Wallet</h3>
+                <p>Secure connection via TON Connect</p>
+                <button class="button" onclick="connectWallet()" id="connect-btn">
+                    Connect TON Wallet
+                </button>
+            </div>
+            
+            <div id="connected-section" class="hidden">
+                <h3>✅ Wallet Connected</h3>
+                <div class="address" id="wallet-address"></div>
+                <div class="status success">
+                    Wallet successfully connected!
+                </div>
+                <button class="button" onclick="sendToBot()">
+                    Confirm & Continue
+                </button>
+            </div>
+            
+            <div id="error-section" class="hidden">
+                <div class="status error" id="error-message"></div>
+                <button class="button" onclick="retryConnection()">
+                    Try Again
+                </button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h4>📋 What's Next?</h4>
+            <p>After connecting, the bot will:</p>
+            <ul style="text-align: left; padding-left: 20px;">
+                <li>Monitor your VINE token balance</li>
+                <li>Notify you when you reach 100+ VINE</li>
+                <li>Provide exclusive rewards</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let walletAddress = null;
+        
+        function connectWallet() {
+            const btn = document.getElementById('connect-btn');
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+            
+            // Имитация TON Connect процесса
+            setTimeout(() => {
+                // Генерируем тестовый TON адрес
+                walletAddress = "EQ" + Math.random().toString(36).substr(2, 46).toUpperCase();
+                
+                // Показываем подключенный кошелёк
+                document.getElementById('connect-section').classList.add('hidden');
+                document.getElementById('connected-section').classList.remove('hidden');
+                document.getElementById('wallet-address').textContent = walletAddress;
+                
+            }, 1500);
+        }
+        
+        function sendToBot() {
+            if (!walletAddress) {
+                showError('No wallet address found');
+                return;
+            }
+            
+            // Отправляем данные в бота
+            const data = {
+                action: 'connect_wallet',
+                wallet_address: walletAddress,
+                timestamp: Date.now()
+            };
+            
+            if (window.Telegram && Telegram.WebApp) {
+                Telegram.WebApp.sendData(JSON.stringify(data));
+                
+                // Закрываем Web App
+                setTimeout(() => {
+                    Telegram.WebApp.close();
+                }, 1000);
+                
+            } else {
+                // Для тестирования вне Telegram
+                alert('Wallet connected: ' + walletAddress + '\n\nIn Telegram, this would send data to the bot.');
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('connect-section').classList.add('hidden');
+            document.getElementById('connected-section').classList.add('hidden');
+            document.getElementById('error-section').classList.remove('hidden');
+            document.getElementById('error-message').textContent = message;
+        }
+        
+        function retryConnection() {
+            document.getElementById('error-section').classList.add('hidden');
+            document.getElementById('connect-section').classList.remove('hidden');
+            
+            const btn = document.getElementById('connect-btn');
+            btn.disabled = false;
+            btn.textContent = 'Connect TON Wallet';
+            
+            walletAddress = null;
+        }
+        
+        // Инициализация Telegram WebApp
+        if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+    </script>
+</body>
+</html>
